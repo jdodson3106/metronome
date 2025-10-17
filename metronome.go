@@ -6,11 +6,11 @@ import (
 )
 
 type Metronome struct {
-	BPM  int
-	Done chan bool
+	BPM    int
+	Done   chan bool
+	Ticker chan int64
 
-	mpb    int64
-	ticker chan int64
+	mpb int64
 }
 
 func NewMetronome(BPM int) *Metronome {
@@ -20,12 +20,12 @@ func NewMetronome(BPM int) *Metronome {
 		BPM:    BPM,
 		Done:   make(chan bool),
 		mpb:    mpb,
-		ticker: make(chan int64),
+		Ticker: make(chan int64),
 	}
 }
 
 func (m *Metronome) Start() {
-	startTimer(m.mpb, m.ticker, m.Done)
+	startTimer(m.mpb, m.Ticker, m.Done)
 }
 
 func startTimer(interval int64, ticker chan int64, done chan bool) {
