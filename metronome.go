@@ -1,52 +1,98 @@
 package metronome
 
 import (
-	"fmt"
 	"time"
 )
 
-type Metronome struct {
-	BPM    int
-	Done   chan bool
-	Ticker chan int64
+const (
+	MICROS_PER_MIN = 60_000_000
+)
 
-	mpb int64
+type Beat struct {
+	Number int
+	tone   Sample
 }
 
-func NewMetronome(BPM int) *Metronome {
-	mpb := int64((1_000_000 * 60) / BPM)
-	//mpb := int64((1_000 * 60) / BPM)
+type TimeSignature struct {
+	Beats int
+	Notes Note
+}
+
+func (t *TimeSignature) BeatsFromTS() []Beat {
+	b := make([]Beat, t.Beats)
+	for i := range t.Beats {
+		// TODO: Create default Sample
+		b[i] = Beat{Number: i + 1, tone: Sample{}}
+	}
+	return b
+}
+
+type MetronomeSettings struct {
+	SoundOn   bool
+	LoopCount int
+}
+
+type Metronome struct {
+	BPM           int
+	Beats         []Beat
+	TimeSignature TimeSignature
+	Settings      MetronomeSettings
+
+	Ticker chan int64
+
+	done chan bool
+	mpb  int64
+}
+
+func Initialize(bpm int, ts TimeSignature) *Metronome {
+	mpb := int64(MICROS_PER_MIN / bpm)
+
+	return &Metronome{
+		TimeSignature: ts,
+		BPM:           bpm,
+		Beats:         ts.BeatsFromTS(),
+		Ticker:        make(chan int64),
+		Settings:      MetronomeSettings{true, -1},
+		done:          make(chan bool),
+		mpb:           mpb,
+	}
+}
+
+func NewMetronome(BPM int, ts TimeSignature) *Metronome {
+	mpb := int64(MICROS_PER_MIN / BPM)
 	return &Metronome{
 		BPM:    BPM,
-		Done:   make(chan bool),
+		done:   make(chan bool),
 		mpb:    mpb,
 		Ticker: make(chan int64),
 	}
 }
 
 func (m *Metronome) Start() {
-	startTimer(m.mpb, m.Ticker, m.Done)
-}
-
-func startTimer(interval int64, ticker chan int64, done chan bool) {
-	next := time.Now().Add(time.Duration(interval) * time.Microsecond)
-	fmt.Println(interval)
-	driftWatcher := interval
+	next := time.Now().Add(time.Duration(m.mpb) * time.Microsecond)
+	driftWatcher := m.mpb
 
 	for {
 		select {
-		case <-done:
-			fmt.Printf("\nstopping timer\n")
+		case <-m.done:
+			// TODO: Handle freeing any file resources here
 			return
 		default:
 			dt := time.Since(next)
 			if dt >= time.Duration(driftWatcher) {
-				//fmt.Printf("\r\033[2K%d", dt)
 				driftWatcher -= int64(dt)
-				driftWatcher += interval
+				driftWatcher += m.mpb
 				next = time.Now().Add(time.Duration(driftWatcher) * time.Microsecond)
-				ticker <- int64(driftWatcher)
+				m.Ticker <- int64(driftWatcher)
 			}
 		}
 	}
+}
+
+func (m *Metronome) Pause() {
+
+}
+
+func (m *Metronome) Stop() {
+	m.done <- true
 }
