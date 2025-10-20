@@ -1,9 +1,10 @@
 package metronome
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"io"
-	"os"
 	"sync"
 
 	"github.com/ebitengine/oto/v3"
@@ -13,18 +14,27 @@ import (
 	"github.com/pkg/errors"
 )
 
+//go:embed audio_samples/c6-tone.mp3
+var tone3 []byte
+
+//go:embed audio_samples/c5-tone.mp3
+var tone2 []byte
+
+//go:embed audio_samples/c4-tone.mp3
+var tone1 []byte
+
 const (
 	sampleRate       = 44100
 	mp3NumChannels   = 2
 	mp3Precision     = 2
 	mp3BytesPerFrame = mp3NumChannels * mp3Precision
 
-	PITCH_ONE   MetronomeSound = "audio_samples/c4-tone.mp3"
-	PITCH_TWO   MetronomeSound = "audio_samples/c5-tone.mp3"
-	PITCH_THREE MetronomeSound = "audio_samples/c6-tone.mp3"
+	PITCH_ONE = iota
+	PITCH_TWO
+	PITCH_THREE
 )
 
-type MetronomeSound string
+type MetronomeSound int
 
 var ctx *Context
 
@@ -58,16 +68,16 @@ type Sample struct {
 	player *oto.Player
 }
 
-func NewSample(file MetronomeSound) (*Sample, error) {
+func NewSample(tone MetronomeSound) (*Sample, error) {
 	s := &Sample{}
 
-	f, err := os.Open(string(file))
-	if err != nil {
-		return s, errors.Wrap(err, "os.Open")
-	}
+	//f, err := os.Open("")
+	//if err != nil {
+	//	return s, errors.Wrap(err, "os.Open")
+	//}
 
 	// create a new decoder
-	d, err := mp3.NewDecoder(f)
+	d, err := getDecoderForTone(tone)
 	if err != nil {
 		return s, errors.Wrap(err, "mp3")
 	}
@@ -91,6 +101,22 @@ func (s *Sample) Play() {
 }
 
 func (s *Sample) Close() {
+}
+
+func getDecoderForTone(t MetronomeSound) (*mp3.Decoder, error) {
+	var r io.Reader
+	switch t {
+	case PITCH_ONE:
+		r = bytes.NewReader(tone1)
+	case PITCH_TWO:
+		r = bytes.NewReader(tone2)
+	case PITCH_THREE:
+		r = bytes.NewReader(tone3)
+	default:
+		return nil, errors.New("invalid MetronomeSound type")
+	}
+
+	return mp3.NewDecoder(r)
 }
 
 // getContext retrieves the wrapped oto.Context
