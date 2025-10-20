@@ -58,18 +58,18 @@ type Sample struct {
 	player *oto.Player
 }
 
-func NewSample(file MetronomeSound) (*Sample, error) {
-	s := &Sample{}
+func NewSample(file MetronomeSound) (Sample, error) {
+	s := Sample{}
 
 	f, err := os.Open(string(file))
 	if err != nil {
-		return nil, errors.Wrap(err, "os.Open")
+		return s, errors.Wrap(err, "os.Open")
 	}
 
 	// create a new decoder
 	d, err := mp3.NewDecoder(f)
 	if err != nil {
-		return nil, errors.Wrap(err, "mp3")
+		return s, errors.Wrap(err, "mp3")
 	}
 	s.d = d
 
@@ -77,7 +77,7 @@ func NewSample(file MetronomeSound) (*Sample, error) {
 	c, err := getContext()
 	s.player, err = c.getPlayer(s.d)
 	if err != nil {
-		return nil, errors.Wrap(err, "getPlayer()")
+		return s, errors.Wrap(err, "getPlayer()")
 	}
 
 	return s, nil

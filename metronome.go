@@ -11,7 +11,7 @@ const (
 
 type Beat struct {
 	Number int
-	tone   *Sample
+	tone   Sample
 }
 
 func (b *Beat) PlayTone() {
@@ -24,15 +24,26 @@ type TimeSignature struct {
 }
 
 func (t *TimeSignature) BeatsFromTS() []Beat {
+	var err error
 	b := make([]Beat, t.Beats)
 	for i := range t.Beats {
-		s, err := NewSample(PITCH_ONE)
+		var s Sample
+		if i == 0 {
+			s, err = NewSample(PITCH_THREE)
+		} else {
+			s, err = NewSample(PITCH_ONE)
+		}
 		if err != nil {
 			fmt.Printf("error loading sample file :: %s\n", err)
 		}
 		b[i] = Beat{Number: i + 1, tone: s}
 	}
 	return b
+}
+
+func (t *TimeSignature) Pretty() string {
+	n, _ := t.Notes.Int()
+	return fmt.Sprintf("%d/%d", t.Beats, n)
 }
 
 type MetronomeSettings struct {
