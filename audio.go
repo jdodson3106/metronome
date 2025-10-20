@@ -83,7 +83,7 @@ func NewSample(file MetronomeSound) (Sample, error) {
 	return s, nil
 }
 
-func (s *Sample) Play() {
+func (s Sample) Play() {
 	s.player.Play()
 	for s.player.IsPlaying() {
 	}
