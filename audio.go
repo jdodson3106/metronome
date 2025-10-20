@@ -8,6 +8,8 @@ import (
 
 	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/go-mp3"
+	mp "github.com/jdodson3106/metronome/internal/mp3"
+	"github.com/jdodson3106/metronome/lib/utils"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +18,6 @@ const (
 	mp3NumChannels   = 2
 	mp3Precision     = 2
 	mp3BytesPerFrame = mp3NumChannels * mp3Precision
-	frameSize        = 4608 // the frame size used to buffer in the oto/mp3 libs
 
 	PITCH_ONE   MetronomeSound = "audio_samples/c4-tone.mp3"
 	PITCH_TWO   MetronomeSound = "audio_samples/c5-tone.mp3"
@@ -26,86 +27,6 @@ const (
 type MetronomeSound string
 
 var ctx *Context
-
-type MP3ReadSeeker struct {
-	rs    io.ReadSeeker
-	start int64 // absolute start
-	limit int64 // number of bites allowed to read from start
-	pos   int64 // current position from start (start..limit)
-}
-
-func NewMP3ReadSeeker(r io.ReadSeeker, start, limit int64) (*MP3ReadSeeker, error) {
-	// first setup the seeker to start at the provided start pos
-	if _, err := r.Seek(start, io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	return &MP3ReadSeeker{rs: r, start: start, limit: limit, pos: 0}, nil
-}
-
-func (rs *MP3ReadSeeker) Read(p []byte) (int, error) {
-	// first make sure we are not at the end of the buffer already
-
-	if rs.pos >= rs.limit {
-		fmt.Println("ALREADY READ THE ENTIRE FILE!")
-		return 0, io.EOF
-	}
-
-	// see how many bytes we have remaining to read
-	// and compare that to the buffer being asked to read
-	remaining := rs.limit - rs.pos
-	toRead := int64(len(p))
-	fmt.Printf("remaining :: %d | toRead :: %d\n", remaining, toRead)
-	if remaining < toRead {
-		toRead = remaining
-	}
-
-	// read the data from start to the max we can support
-	n, err := rs.rs.Read(p[:toRead])
-	fmt.Printf("read %d bytes\n", n)
-
-	rs.pos += int64(n)
-	if err != nil {
-		return n, err
-	}
-
-	// if we read to the end or over then
-	// surface the io.EOF 10% of the total file bytes
-	if rs.pos >= rs.limit {
-		len64 := int64(len(p))
-		trimmed := trimmedTo(10, len64)
-		return int(trimmed), io.EOF
-	}
-
-	return n, nil
-}
-
-func (rs *MP3ReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	fmt.Println("seek()...")
-	var abs int64
-	switch whence {
-	case io.SeekStart:
-		abs = rs.start + offset
-	case io.SeekCurrent:
-		abs = rs.start + rs.pos + offset
-	case io.SeekEnd:
-		abs = rs.start + rs.limit + offset
-	default:
-		return 0, fmt.Errorf("invalid whence value provided")
-	}
-
-	if abs < rs.start {
-		return 0, errors.New("seeking before start")
-	}
-
-	if _, err := rs.rs.Seek(abs, whence); err != nil {
-		return 0, errors.Wrap(err, "mp3 seek failed")
-	}
-
-	rs.pos = abs - rs.start
-	fmt.Printf("abs: %d, pos: %d\n", abs, rs.pos)
-	return rs.pos, nil
-}
 
 type Context struct {
 	c  *oto.Context
@@ -117,10 +38,11 @@ func (c *Context) getPlayer(d *mp3.Decoder) (*oto.Player, error) {
 	defer c.mu.Unlock()
 
 	d.Seek(0, io.SeekStart)
-	// TOOD: figure out how to make this size a paramter
-	size := trimmedTo(10, d.Length())
+	// TODO: This trimming needs to be pulled to an external method that scans the mp3 file and cuts off the
+	// dead space, and then trims the tone based on time not percentage
+	size := utils.TrimmedTo(10, d.Length())
 	fmt.Printf("full :: %d | 10%% %d\n", d.Length(), size)
-	halfPlayer, err := NewMP3ReadSeeker(d, 0, size)
+	halfPlayer, err := mp.NewMP3ReadSeeker(d, 0, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting new MP3ReadSeeker")
 	}
@@ -194,8 +116,4 @@ func getContext() (*Context, error) {
 	}
 
 	return ctx, nil
-}
-
-func trimmedTo(perc, total int64) int64 {
-	return perc * total / 100
 }
