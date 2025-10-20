@@ -1,6 +1,7 @@
 package metronome
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -10,7 +11,11 @@ const (
 
 type Beat struct {
 	Number int
-	tone   Sample
+	tone   *Sample
+}
+
+func (b *Beat) PlayTone() {
+	b.tone.Play()
 }
 
 type TimeSignature struct {
@@ -21,8 +26,11 @@ type TimeSignature struct {
 func (t *TimeSignature) BeatsFromTS() []Beat {
 	b := make([]Beat, t.Beats)
 	for i := range t.Beats {
-		// TODO: Create default Sample
-		b[i] = Beat{Number: i + 1, tone: Sample{}}
+		s, err := NewSample(PITCH_ONE)
+		if err != nil {
+			fmt.Printf("error loading sample file :: %s\n", err)
+		}
+		b[i] = Beat{Number: i + 1, tone: s}
 	}
 	return b
 }
