@@ -11,7 +11,7 @@ const (
 
 type Beat struct {
 	Number int
-	tone   Sample
+	tone   *Sample
 }
 
 func (b *Beat) PlayTone() {
@@ -27,7 +27,7 @@ func (t *TimeSignature) BeatsFromTS() []Beat {
 	var err error
 	b := make([]Beat, t.Beats)
 	for i := range t.Beats {
-		var s Sample
+		var s *Sample
 		if i == 0 {
 			s, err = NewSample(PITCH_THREE)
 		} else {

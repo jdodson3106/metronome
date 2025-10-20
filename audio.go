@@ -58,8 +58,8 @@ type Sample struct {
 	player *oto.Player
 }
 
-func NewSample(file MetronomeSound) (Sample, error) {
-	s := Sample{}
+func NewSample(file MetronomeSound) (*Sample, error) {
+	s := &Sample{}
 
 	f, err := os.Open(string(file))
 	if err != nil {
@@ -83,7 +83,7 @@ func NewSample(file MetronomeSound) (Sample, error) {
 	return s, nil
 }
 
-func (s Sample) Play() {
+func (s *Sample) Play() {
 	s.player.Play()
 	for s.player.IsPlaying() {
 	}
