@@ -3,14 +3,14 @@ package metronome
 import (
 	"bytes"
 	_ "embed"
-	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/go-mp3"
 	mp "github.com/jdodson3106/metronome/internal/mp3"
-	"github.com/jdodson3106/metronome/lib/utils"
+	//"github.com/jdodson3106/metronome/lib/utils"
 	"github.com/pkg/errors"
 )
 
@@ -50,26 +50,26 @@ func (c *Context) getPlayer(d *mp3.Decoder) (*oto.Player, error) {
 	d.Seek(0, io.SeekStart)
 	// TODO: This trimming needs to be pulled to an external method that scans the mp3 file and cuts off the
 	// dead space, and then trims the tone based on time not percentage
-	size := utils.TrimmedTo(10, d.Length())
-	fmt.Printf("full :: %d | 10%% %d\n", d.Length(), size)
-	halfPlayer, err := mp.NewMP3ReadSeeker(d, 0, size)
+	//size := utils.TrimmedTo(10, d.Length())
+	player, err := mp.NewMP3ReadSeeker(d, 0, d.Length())
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting new MP3ReadSeeker")
 	}
-	return c.c.NewPlayer(halfPlayer), nil
+	return c.c.NewPlayer(player), nil
 }
 
 // Sample represents the audio
 // file used for the
 // metronome tick sounds
 type Sample struct {
-	rc     *io.ReadCloser
-	d      *mp3.Decoder
-	player *oto.Player
+	TimeMicros int64
+	rc         *io.ReadCloser
+	d          *mp3.Decoder
+	player     *oto.Player
 }
 
-func NewSample(tone MetronomeSound) (*Sample, error) {
-	s := &Sample{}
+func NewSample(tone MetronomeSound, mpb int64) (*Sample, error) {
+	s := &Sample{TimeMicros: mpb}
 
 	//f, err := os.Open("")
 	//if err != nil {
@@ -94,9 +94,11 @@ func NewSample(tone MetronomeSound) (*Sample, error) {
 }
 
 func (s *Sample) Play() {
+	end := time.Now().Add(time.Duration(s.TimeMicros) * time.Microsecond)
 	s.player.Play()
-	for s.player.IsPlaying() {
+	for end.After(time.Now()) {
 	}
+	s.player.Pause()
 	s.player.Seek(0, io.SeekStart)
 }
 

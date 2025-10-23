@@ -23,15 +23,15 @@ type TimeSignature struct {
 	Notes Note
 }
 
-func (t *TimeSignature) BeatsFromTS() []Beat {
+func (t *TimeSignature) BeatsFromTS(mpb int64) []Beat {
 	var err error
 	b := make([]Beat, t.Beats)
 	for i := range t.Beats {
 		var s *Sample
 		if i == 0 {
-			s, err = NewSample(PITCH_THREE)
+			s, err = NewSample(PITCH_THREE, mpb)
 		} else {
-			s, err = NewSample(PITCH_ONE)
+			s, err = NewSample(PITCH_ONE, mpb)
 		}
 		if err != nil {
 			fmt.Printf("error loading sample file :: %s\n", err)
@@ -69,7 +69,7 @@ func Initialize(bpm int, ts TimeSignature) *Metronome {
 	return &Metronome{
 		TimeSignature: ts,
 		BPM:           bpm,
-		Beats:         ts.BeatsFromTS(),
+		Beats:         ts.BeatsFromTS(mpb),
 		Ticker:        make(chan int64),
 		Settings:      MetronomeSettings{true, -1},
 		done:          make(chan bool),
